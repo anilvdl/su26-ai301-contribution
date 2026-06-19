@@ -4,7 +4,7 @@
 **Student:** Anil Kumar V </br>
 **Issue:** https://github.com/carlos-emr/carlos/issues/1748 </br>
 **Pull Request:** https://github.com/carlos-emr/carlos/pull/2938 </br>
-**Status:** Phase III - Complete — PR open, awaiting maintainer review
+**Status:** Phase III Complete · Phase IV In Progress - PR open; automated review addressed (`4c7d100`); awaiting maintainer review (Actions workflows pending maintainer "approve and run")
 
 ---
 
@@ -88,7 +88,7 @@ Refactor `getConsults` to build its query with `CriteriaBuilder` / `CriteriaQuer
 4. ORDER BY: formalize the existing hand-rolled token whitelist (`"1"`-`"9"`) into a map of column paths; default/unknown token -> `referralDate desc`; preserve the secondary sort.
 5. Pagination: preserve `offset` (null -> 0), `limit` (null -> 100), and the `MAX_LIST_RETURN_SIZE = 5000` cap.
 
-**Implement:** commits [`1237f0b4a49`](https://github.com/anilvdl/carlos/commit/1237f0b4a49) (refactor) + [`29c5aafc14a`](https://github.com/anilvdl/carlos/commit/29c5aafc14a) (tests) on `fix-issue-1748`.
+**Implement:** commits [`1237f0b`](https://github.com/anilvdl/carlos/commit/1237f0b4a4919591021641876d143c6461670b4d) (refactor) + [`5378570`](https://github.com/anilvdl/carlos/commit/5378570ee46785ba0e57d65a46e83a6ccd5f4502) (tests) + [`4c7d100`](https://github.com/anilvdl/carlos/commit/4c7d10017ed4e0c98725b9b1d132af6bd3392b52) (review follow-ups) on `fix-issue-1748`.
 
 **Review:** Follow Carlos contribution guidelines - commits DCO-signed (`git commit -s`), no AI attribution, target `develop`, GPL v2. Public signature and behavior unchanged (except the deliberate, flagged dead-join removal).
 
@@ -99,7 +99,7 @@ Refactor `getConsults` to build its query with `CriteriaBuilder` / `CriteriaQuer
 ## Testing Strategy
 
 ### Integration Tests (run against H2, autowiring the real `consultationRequestDao` bean)
-All passing — `Tests run: 17, Failures: 0, Errors: 0`:
+All passing - `Tests run: 17, Failures: 0, Errors: 0`:
 - [x] Equivalence: no filters → all rows, `referralDate desc`, capped at 100
 - [x] `showCompleted=false` with `status` ∈ {`'4'`,`'1'`,`NULL`} → NULL rows excluded
 - [x] `team="cardiology"` → equality match
@@ -119,19 +119,27 @@ All passing — `Tests run: 17, Failures: 0, Errors: 0`:
 ### Progress
 Implemented the refactor via a Claude + Claude Code workflow (I drafted structured instructions; CC executed locally; I validated each result before accepting it). The work split into: the predicate/pagination refactor (straightforward), a genuine design blocker on the joins, a production-wiring investigation, and a pre-merge rebase that surfaced upstream #2898.
 
-**The join blocker and decision (Option A).** Three of the four joins in `getConsults` (`ConsultationServices`, `Demographic`, `Provider`) target *unmapped* FK scalars and are used only in `ORDER BY`. Standard JPA Criteria can only join mapped associations, so it physically cannot express these joins — and the naive workaround (extra roots + WHERE correlation) silently converts `LEFT JOIN` to `INNER`, dropping rows. CC correctly stopped and surfaced this rather than guessing. I chose **Option A**: keep `professionalSpecialist` as a native association join, use Hibernate's entity-join extension (`JpaRoot.join(Entity.class, JoinType.LEFT).on(...)`) for the three unmapped sort joins to preserve `LEFT` semantics, and **drop the dead `ConsultationRequestExt` join** (never read, only multiplied rows — an unintended duplication). Both non-standard choices are flagged in the PR for maintainer review rather than decided silently.
+**The join blocker and decision (Option A).** Three of the four joins in `getConsults` (`ConsultationServices`, `Demographic`, `Provider`) target *unmapped* FK scalars and are used only in `ORDER BY`. Standard JPA Criteria can only join mapped associations, so it physically cannot express these joins - and the naive workaround (extra roots + WHERE correlation) silently converts `LEFT JOIN` to `INNER`, dropping rows. CC correctly stopped and surfaced this rather than guessing. I chose **Option A**: keep `professionalSpecialist` as a native association join, use Hibernate's entity-join extension (`JpaRoot.join(Entity.class, JoinType.LEFT).on(...)`) for the three unmapped sort joins to preserve `LEFT` semantics, and **drop the dead `ConsultationRequestExt` join** (never read, only multiplied rows - an unintended duplication). Both non-standard choices are flagged in the PR for maintainer review rather than decided silently.
 
-**Production-wiring verification.** `ConsultationRequestDaoImpl` has no `@Repository`, which raised the question of whether the method is even reachable. Tracing it: the registered `@Repository("consultationRequestDao")` bean `ConsultationRequestMergedDemographicDaoImpl` extends `ConsultationRequestDaoImpl` and does **not** override the 9-arg `getConsults` — so it inherits the refactored method, `@PersistenceContext` is injected, and the method is reached via `EctViewConsultationRequestsUtil`. Confirmed reachable production code, not dead. The test was updated to `@Autowired` the genuine bean rather than hand-construct the DAO, so it exercises the real resolution path.
+**Production-wiring verification.** `ConsultationRequestDaoImpl` has no `@Repository`, which raised the question of whether the method is even reachable. Tracing it: the registered `@Repository("consultationRequestDao")` bean `ConsultationRequestMergedDemographicDaoImpl` extends `ConsultationRequestDaoImpl` and does **not** override the 9-arg `getConsults` - so it inherits the refactored method, `@PersistenceContext` is injected, and the method is reached via `EctViewConsultationRequestsUtil`. Confirmed reachable production code, not dead. The test was updated to `@Autowired` the genuine bean rather than hand-construct the DAO, so it exercises the real resolution path.
 
-**Rebase and #2898.** Before opening the PR, I rebased onto the latest `develop`, which conflicted in `getConsults` — upstream #2898 had parameterized the same lines after I branched. Resolving it confirmed the injection vector was already mitigated on `develop`, so I reframed the PR (and this README) around the issue's actual ask — adopting the type-safe Criteria API — rather than claiming a novel injection fix, and acknowledged #2898 in the PR description.
+**Rebase and #2898.** Before opening the PR, I rebased onto the latest `develop`, which conflicted in `getConsults` - upstream #2898 had parameterized the same lines after I branched. Resolving it confirmed the injection vector was already mitigated on `develop`, so I reframed the PR (and this README) around the issue's actual ask - adopting the type-safe Criteria API - rather than claiming a novel injection fix, and acknowledged #2898 in the PR description.
+
+**Automated review round (PR #2938).** The PR drew several automated reviewers - cubic and CodeRabbit (no actionable findings), Sourcery (rate-limited), gemini-code-assist (three inline comments), plus a CodeFactor checkstyle run. I evaluated each on its merits rather than auto-applying:
+- **Null `team` guard** (gemini - valid): `if (!team.isEmpty())` → `if (team != null && !team.isEmpty())`, so a null `team` now skips the filter, consistent with the empty-string case. Applied in `4c7d100`.
+- **BDD test-method naming** (gemini + CI `bdd-test-naming.yml` - valid): collapsed seven method names with multiple underscores to the single-underscore `should<Action>_<condition>` convention. Applied in `4c7d100`.
+- **Checkstyle one-statement-per-line** (CodeFactor, 46 findings - valid): split the packed fixture lines. Applied in `4c7d100`.
+- **"Move the test to `src/test-modern/`"** (gemini - *incorrect*): declined. Verified against the live tree that there is no `src/test-modern/` directory; all 337 integration tests (including the sibling DAO tests in this same package) live under `src/test/`, so the file was left co-located with its peers and the evidence noted on the thread. A reminder to validate bot suggestions rather than apply them blindly.
+- **Docstring coverage 25.81% < 80%** (CodeRabbit soft check): added repo-aligned JavaDoc to the public `getConsults`, the test class, and the order-by helpers, but deliberately did not document individual test methods - the repo's own convention relies on `@DisplayName` there, so chasing the 80% number would contradict it.
 
 ### Code Changes
 - **Files modified:**
   - `src/main/java/io/github/carlos_emr/carlos/commn/dao/ConsultationRequestDaoImpl.java`
   - `src/test/.../ConsultationRequestGetConsultsCriteriaIntegrationTest.java` (new)
 - **Commits** (branch [`fix-issue-1748`](https://github.com/anilvdl/carlos/tree/fix-issue-1748), rebased onto latest `develop`):
-  - [`1237f0b4a49`](https://github.com/anilvdl/carlos/commit/1237f0b4a49) — `refactor: convert ConsultationRequestDaoImpl.getConsults to JPA Criteria`
-  - [`29c5aafc14a`](https://github.com/anilvdl/carlos/commit/29c5aafc14a) — `test: add equivalence, injection, and ORDER BY tests for getConsults Criteria refactor`
+  - [`1237f0b`](https://github.com/anilvdl/carlos/commit/1237f0b4a4919591021641876d143c6461670b4d) - `refactor: convert ConsultationRequestDaoImpl.getConsults to JPA Criteria`
+  - [`5378570`](https://github.com/anilvdl/carlos/commit/5378570ee46785ba0e57d65a46e83a6ccd5f4502) - `test: add equivalence, injection, and ORDER BY tests for getConsults Criteria refactor`
+  - [`4c7d100`](https://github.com/anilvdl/carlos/commit/4c7d10017ed4e0c98725b9b1d132af6bd3392b52) - `test: align BDD naming + checkstyle, add JavaDoc; guard null team` (review follow-ups)
 - **Approach decisions:** build the query with the type-safe Criteria API (the issue's ask); bind `team` and dates through the API (completing the migration; #2898 had already parameterized them on `develop`); preserve `status`/NULL/ordering/pagination behavior exactly; Option A for the joins (Hibernate entity-join extension + drop dead `ext`); both non-standard choices flagged in the PR.
 
 ### Challenges Faced
@@ -144,7 +152,8 @@ Implemented the refactor via a Claude + Claude Code workflow (I drafted structur
 ## Pull Request
 
 **PR Link:** https://github.com/carlos-emr/carlos/pull/2938 </br>
-**PR Title:** refactor: convert ConsultationRequestDaoImpl.getConsults to type-safe JPA Criteria (#1748)</br>
-**PR Description:** Migrates `getConsults` to the type-safe JPA `CriteriaBuilder` API per #1748, building on #2898; flags two decisions for review (Hibernate entity-join extension for the unmapped sort joins; dropped dead `ext` join / de-duplication). Includes 17 integration tests + regression.</br>
-**Maintainer Feedback:** _(none yet — awaiting review)_</br>
-**Status:** Awaiting maintainer review
+**PR Title:** refactor: convert ConsultationRequestDaoImpl.getConsults to type-safe JPA Criteria (#1748) </br>
+**PR Description:** Migrates `getConsults` to the type-safe JPA `CriteriaBuilder` API per #1748, building on #2898; flags two decisions for review (Hibernate entity-join extension for the unmapped sort joins; dropped dead `ext` join / de-duplication). Includes 17 integration tests + regression. </br>
+**Automated review:** addressed in `4c7d100` (null-`team` guard, BDD test naming, checkstyle one-statement-per-line, JavaDoc); one suggestion (move to `src/test-modern/`) declined with evidence - see Implementation Notes. </br>
+**Maintainer Feedback:** _(none yet - awaiting human review; the GitHub Actions workflows are pending a maintainer "approve and run" gate that applies to first-time fork contributors)_ </br>
+**Status:** Phase IV - PR open, automated review addressed, awaiting maintainer review
