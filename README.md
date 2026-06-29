@@ -1,10 +1,24 @@
+# AI-301 Open Source Capstone — Contribution README
+
+**Student:** Anil Kumar V <br/>
+**Program:** AI301 | AI Open Source Capstone (Summer 2026, Section 18)<br/>
+**Member ID:** 153374<br/>
+**Project contributed to:** [carlos-emr/carlos](https://github.com/carlos-emr/carlos) (Carlos EMR)
+
+This README documents two open-source contributions to the Carlos EMR project:
+
+1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** — Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open; approved by lead maintainer `yingbull` at first review with no concerns; awaiting a second maintainer approval to merge.
+2. **[PR #2977](https://github.com/carlos-emr/carlos/pull/2977)** — Fix HTTP 500 on bulk tickler complete/delete caused by unsafe Jackson `ArrayNode` parsing (issue #2958). Merged to `develop` on 2026-06-23.
+
+---
+
 # Contribution #1: Investigate: Hibernate 7 JPA 3 Criteria API (Type-Safe Queries)
 
 **Contribution Number:** 1 </br>
 **Student:** Anil Kumar V </br>
 **Issue:** https://github.com/carlos-emr/carlos/issues/1748 </br>
 **Pull Request:** https://github.com/carlos-emr/carlos/pull/2938 </br>
-**Status:** Phase III Complete · Phase IV In Progress - PR open; automated review addressed (`4c7d100`); awaiting maintainer review (Actions workflows pending maintainer "approve and run")
+**Status:** Phase IV Complete - PR open and approved by the lead maintainer (`yingbull`) at first review with no change requests; all checks green; awaiting a second maintainer approval to satisfy the repo's two-approval branch-protection rule before merge.
 
 ---
 
@@ -155,5 +169,172 @@ Implemented the refactor via a Claude + Claude Code workflow (I drafted structur
 **PR Title:** refactor: convert ConsultationRequestDaoImpl.getConsults to type-safe JPA Criteria (#1748) </br>
 **PR Description:** Migrates `getConsults` to the type-safe JPA `CriteriaBuilder` API per #1748, building on #2898; flags two decisions for review (Hibernate entity-join extension for the unmapped sort joins; dropped dead `ext` join / de-duplication). Includes 17 integration tests + regression. </br>
 **Automated review:** addressed in `4c7d100` (null-`team` guard, BDD test naming, checkstyle one-statement-per-line, JavaDoc); one suggestion (move to `src/test-modern/`) declined with evidence - see Implementation Notes. </br>
-**Maintainer Feedback:** _(none yet - awaiting human review; the GitHub Actions workflows are pending a maintainer "approve and run" gate that applies to first-time fork contributors)_ </br>
-**Status:** Phase IV - PR open, automated review addressed, awaiting maintainer review
+**Maintainer Feedback:** Approved by the lead maintainer `yingbull` at first review, with no change requests or open concerns. All CI checks pass and all review threads are resolved. The PR is not yet merged only because the repository's branch protection requires two human approvals; it is awaiting a second maintainer's approval. </br>
+**Status:** Phase IV Complete - PR open, automated review addressed, lead-maintainer approved, awaiting a second approval to merge
+
+---
+---
+
+# Contribution #2: Fix HTTP 500 on Bulk Tickler Complete/Delete (Jackson ArrayNode Parsing)
+
+**Contribution Number:** 2 </br>
+**Student:** Anil Kumar V </br>
+**Issue:** https://github.com/carlos-emr/carlos/issues/2958 </br>
+**Pull Request:** https://github.com/carlos-emr/carlos/pull/2977 </br>
+**Status:** Complete - PR merged to `develop` on 2026-06-23 (merge commit `40986ff`) by maintainer `yingbull`, who publicly endorsed it on the PR ("Very helpful contribution - much welcome. Thank you."). Automated review addressed; all checks green; merged.
+
+---
+
+## Why I Chose This Issue
+
+Issue #2958 reports that the bulk tickler operations in Carlos - "complete" and "delete" across a selected set of ticklers - returned an HTTP 500 for every valid request, making those two REST endpoints completely unusable. Ticklers are the EMR's task/reminder mechanism, so a clinician trying to clear or close out a batch of follow-up items would hit a server error every time. The defect was also reported a second time as #2823, which confirms it was a real, user-visible breakage rather than an edge case.
+
+I chose it because it sits squarely in my strengths - Java, Spring, and REST/JSON request handling - while being tightly bounded: a single broken request-parsing path with a clear, reproducible failure and an obvious correctness contract (a valid bulk request should succeed, not 500). It is the kind of issue where the fix is small but the verification has to be careful, which matched how I want to contribute: a real reliability fix to a widely-used healthcare codebase, with regression tests that prove the endpoints actually work afterward. My learning goals were to understand how Carlos structures its REST/web-service layer, to trace a 500 down to its root cause in Jackson `JsonNode` handling, and to harden the input parsing so the endpoints fail loudly and clearly on bad input instead of silently misbehaving.
+
+---
+
+## Understanding the Issue
+
+### Problem Description
+The bulk tickler endpoints `POST /tickler/complete` and `POST /tickler/delete` accept a JSON array of tickler IDs. The handler iterated the incoming Jackson `ArrayNode` and cast each element directly to `Integer`. Iterating an `ArrayNode` yields `JsonNode` elements, not boxed `Integer`s, so the cast threw `ClassCastException` on every element - which surfaced to the caller as an HTTP 500 for every otherwise-valid request.
+
+### Expected Behavior
+A valid bulk request (a JSON array of integer tickler IDs) should complete or delete the referenced ticklers and return a success response. Malformed input (missing array, non-array, non-integer, fractional, or out-of-range IDs) should be rejected with a clear error rather than a 500 or silent misbehavior.
+
+### Current Behavior (at issue time)
+Every call to `POST /tickler/complete` and `POST /tickler/delete` returned HTTP 500, because each `JsonNode` element could not be cast to `Integer`. The endpoints were effectively dead.
+
+### Affected Components
+The REST/web-service layer of Carlos (Java, Spring, Jackson). Specifically the bulk tickler handlers in:
+- `src/main/java/io/github/carlos_emr/carlos/webserv/rest/TicklerWebService.java`
+
+---
+
+## Phase II: Reproduce & Plan
+
+### Environment Setup
+Built and tested locally against the fork using the same toolchain as Contribution #1 (Java 21 / Spring 7 / Hibernate 7 Carlos stack), so no additional environment notes specific to this change. The targeted suite for this contribution builds clean: `mvn test -Dtest=TicklerWebServiceUnitTest` -> `Tests run: 9, Failures: 0, Errors: 0` -> BUILD SUCCESS (verified 2026-06-28).
+
+A full-suite `mvn clean install` on the merged `develop` worktree reports 10 failures across three unrelated classes (`AddEditDocument2ActionUnitTest`, `MiscUtilsLoggingOverrideUnitTest`, `PathValidationUtilsUnitTest`) - all file-upload / logging-config / canonical-path tests that are sensitive to the macOS `/tmp` -> `/private/tmp` symlink canonicalization and pass green on the CI Linux runners. Zero Tickler tests fail. These failures are environment-specific and unrelated to this PR.
+
+### Affected Code (identified)
+The bulk handlers for `POST /tickler/complete` and `POST /tickler/delete` in `TicklerWebService.java`. Each read the request body's `ticklers` array and converted elements to integers by casting `JsonNode` to `Integer`. The affected handlers (line numbers in the merged version):
+- `completeTicklers(JsonNode json)` - `TicklerWebService.java:269` (serves `POST /tickler/complete`)
+- `deleteTicklers(JsonNode json)` - `TicklerWebService.java:296` (serves `POST /tickler/delete`)
+The shared ID-extractor added by this PR, `private List<Integer> extractTicklerIds(JsonNode json)`, lives at `TicklerWebService.java:334` and is called from both handlers.
+
+### Steps to Reproduce
+1. Send a valid `POST /tickler/complete` (or `/tickler/delete`) request with a JSON body containing a `ticklers` array of integer IDs.
+2. Observe HTTP 500. The root cause is a `ClassCastException`: iterating the Jackson `ArrayNode` yields `JsonNode` elements, and each is cast to `Integer`, which fails.
+3. Confirm the contrast that isolates the fix: the existing `updateTickler` path already reads IDs correctly via `JsonNode.asInt()` rather than casting - so the project already contained the correct idiom, and the bulk paths simply did not use it.
+
+### Reproduction Evidence
+- **Working branch:** https://github.com/anilvdl/carlos/tree/fix-issue-2958
+- **Defect reports:** #2958 (this issue) and #2823 (independent duplicate report of the same 500), which together confirm a real, repeatable failure.
+- **Root cause:** `ClassCastException` from casting `JsonNode` elements of an `ArrayNode` to `Integer` in the bulk complete/delete handlers.
+- **Regression coverage:** the new `TicklerWebServiceUnitTest` includes happy-path tests for both endpoints plus a `ticklers`-missing / non-array / non-integer / fractional set, which would have failed against the pre-fix `Integer`-cast handlers; all 9 pass against the fixed code.
+
+---
+
+## Solution Approach
+
+### Analysis
+The root cause is a request-parsing bug: the handlers assumed `ArrayNode` iteration produced `Integer`s. The minimal correct fix is to read each ID with `JsonNode.asInt()`, matching the idiom already used in `updateTickler`. Beyond the immediate crash, the same parsing path also needed to reject malformed input cleanly rather than 500-ing or silently doing the wrong thing - which is what the review round (below) drove into a shared, validated extractor.
+
+### Proposed Solution
+Replace the unsafe `Integer` cast with `JsonNode.asInt()`-based reading, and centralize ID extraction in a single shared helper used by both bulk endpoints. The helper validates the payload as an integer array and rejects missing, non-array, non-integer, fractional, and out-of-range IDs with a clear error, instead of throwing or truncating. Public endpoint behavior for valid input is unchanged - the endpoints simply work.
+
+### Implementation Plan (UMPIRE)
+
+**Understand:** Bulk complete/delete 500 on every request because each `JsonNode` element is cast to `Integer`; the endpoints are unusable.
+
+**Match:** Mirror the existing in-repo idiom in `updateTickler`, which already reads IDs via `JsonNode.asInt()`.
+
+**Plan:**
+1. Add a shared extractor that takes the request body, validates the `ticklers` field is an array, and parses each element to an int.
+2. The extractor enforces `isIntegralNumber()` and `canConvertToInt()` per element, rejecting non-integer, fractional (e.g. `1.9`), and out-of-range values - so bad input returns a clear error rather than a `ClassCastException`, an NPE, or a silently truncated ID.
+3. Route both `POST /tickler/complete` and `POST /tickler/delete` through the shared extractor.
+4. Preserve existing privilege checks and success-response behavior for valid requests.
+
+**Implement:** Changes in `TicklerWebService.java` (46 additions / 6 deletions) plus a new `TicklerWebServiceUnitTest.java` (198 lines), across 7 commits on `fix-issue-2958` (oldest to newest; the three `Merge branch 'develop'` commits are routine syncs to keep the branch current):
+- [`648b746`](https://github.com/anilvdl/carlos/commit/648b746) - `fix: tickler bulk complete/delete always 500 (#2958)` (the core `JsonNode.asInt()` fix)
+- [`ab0ef74`](https://github.com/anilvdl/carlos/commit/ab0ef74) - `Merge branch 'develop' into fix-issue-2958`
+- [`60b0841`](https://github.com/anilvdl/carlos/commit/60b0841) - `fix: validate ticklers payload in bulk complete/delete (#2958)` (shared validated extractor)
+- [`e565a0e`](https://github.com/anilvdl/carlos/commit/e565a0e) - `test: add privilege-denied test for tickler bulk delete (#2958)`
+- [`48dba6e`](https://github.com/anilvdl/carlos/commit/48dba6e) - `Merge branch 'develop' into fix-issue-2958`
+- [`a880396`](https://github.com/anilvdl/carlos/commit/a880396) - `fix: reject fractional tickler ids in bulk complete/delete (#2958)` (cubic P1 hardening)
+- [`f764322`](https://github.com/anilvdl/carlos/commit/f764322) - `Merge branch 'develop' into fix-issue-2958`
+
+**Review:** Carlos contribution guidelines followed - commits DCO-signed (`git commit -s`), Conventional Commits format, no PHI, target `develop`, GPL v2. No AI attribution.
+
+**Evaluate:** Unit tests cover the complete and delete happy paths, empty-array handling, privilege-denied behavior, and rejection of invalid/fractional IDs (see Testing Strategy).
+
+---
+
+## Testing Strategy
+
+### Unit Tests (new `TicklerWebServiceUnitTest`)
+All passing - `Tests run: 9, Failures: 0, Errors: 0, Skipped: 0` -> BUILD SUCCESS (verified 2026-06-28). The 9 tests (in file order):
+- [x] `shouldCompleteEachTickler_whenValidIdArrayProvided` - `POST /tickler/complete` happy path, valid ID array completes (no longer 500)
+- [x] `shouldDeleteEachTickler_whenValidIdArrayProvided` - `POST /tickler/delete` happy path, valid ID array deletes (no longer 500)
+- [x] `shouldNotCallManager_whenTicklerArrayIsEmpty` - empty `ticklers` array handled cleanly, no manager call, no 500
+- [x] `shouldDenyCompletion_whenCallerLacksTicklerUpdatePrivilege` - privilege check enforced for complete
+- [x] `shouldDenyDeletion_whenCallerLacksTicklerUpdatePrivilege` - privilege check enforced for delete
+- [x] `shouldReturnError_whenTicklersFieldMissing` - missing `ticklers` field rejected with a clear error
+- [x] `shouldReturnError_whenTicklersIsNotArray` - non-array payload rejected with a clear error
+- [x] `shouldReturnError_whenTicklerIdIsNotInteger` - non-integer ID rejected with a clear error
+- [x] `shouldReturnError_whenTicklerIdIsFractional` - fractional ID (e.g. `1.9`) rejected rather than silently truncated; added in response to the review round below
+
+Run: `mvn test -Dtest=TicklerWebServiceUnitTest` -> `Tests run: 9, Failures: 0, Errors: 0`
+
+---
+
+## Implementation Notes
+
+### Progress
+Implemented via a Claude + Claude Code workflow (I drafted structured instructions; CC executed locally; I validated each result before accepting it). The core fix - swapping the `Integer` cast for `JsonNode.asInt()` against the `updateTickler` precedent - was small. The substantive work was hardening the parsing into a single validated extractor and proving the endpoints behave correctly across valid and malformed input.
+
+**Automated review round (PR #2977).** The PR drew automated reviewers (Sourcery, cubic, CodeRabbit). I evaluated each finding on its merits and verified claims against the live code before acting, rather than auto-applying suggestions:
+- **Fractional-ID truncation (cubic - P1, valid):** cubic flagged that a naive `asInt()` / `canConvertToInt()` approach would accept a fractional `DoubleNode` such as `1.9` and truncate it to `1`, silently operating on the wrong tickler record. I hardened the extractor to require `isIntegralNumber()` in addition to `canConvertToInt()`, so fractional and out-of-range IDs are rejected with a clear error instead of being silently coerced. Covered by a new BDD-named regression test. cubic's P1 auto-resolved after the change.
+- **CodeRabbit:** returned clean (no actionable findings) after the hardening.
+- **Maintainer process gate:** as a first-time fork contributor, the GitHub Actions workflows were gated behind a maintainer "approve and run" click, and maintainer `Ben-Heerema` set the PR to draft (2026-06-22) with a request that I run CodeRabbit myself before re-review. I ran CodeRabbit, addressed the findings, marked the PR ready, and requested re-review. The PR was subsequently merged by `yingbull`.
+
+**Scope discipline.** Raw JSON request-body logging was raised as a possible addition but deliberately kept out of scope; the maintainer tracked it in follow-up issue **#2982** rather than expanding this PR. Keeping the PR focused on the 500 fix plus input validation made it a clean, reviewable change.
+
+### Code Changes
+- **Files modified:**
+  - `src/main/java/io/github/carlos_emr/carlos/webserv/rest/TicklerWebService.java` (46 +/ 6 -)
+  - `src/test/java/io/github/carlos_emr/carlos/webserv/rest/TicklerWebServiceUnitTest.java` (new, 198 +)
+- **Branch:** [`fix-issue-2958`](https://github.com/anilvdl/carlos/tree/fix-issue-2958), 7 commits (4 substantive fix/test commits + 3 `develop` sync merges), merged to `develop` as `40986ff`.
+- **Approach decisions:** read IDs via `JsonNode.asInt()` mirroring `updateTickler`; centralize parsing in one shared, validated extractor used by both bulk endpoints; reject missing/non-array/non-integer/fractional/out-of-range IDs with a clear error; preserve privilege checks and valid-request behavior unchanged.
+
+### Challenges Faced
+- The failure surfaced only as a generic HTTP 500; root-causing it required tracing the bulk handlers to the `JsonNode` -> `Integer` cast and recognizing that `ArrayNode` iteration yields `JsonNode`, not `Integer`.
+- The first-pass fix was correct for the crash but still permitted silently-truncated fractional IDs; the review round (cubic P1) pushed it to a properly-validated extractor, which is the more defensible fix for a healthcare task system.
+- First-time-contributor workflow gating meant the PR could not run CI until a maintainer approved the run, so the review loop required coordinating with the maintainers rather than relying on automated checks alone.
+
+---
+
+## Pull Request
+
+**PR Link:** https://github.com/carlos-emr/carlos/pull/2977 </br>
+**PR Title:** fix: tickler bulk complete/delete always 500 (#2958) </br>
+**PR Description:** Bulk tickler complete/delete (`POST /tickler/complete`, `POST /tickler/delete`) returned HTTP 500 for every valid request because iterating a Jackson `ArrayNode` yields `JsonNode` elements, so casting each to `Integer` threw `ClassCastException`. IDs are now read with `JsonNode.asInt()` (matching `updateTickler`) and parsed through a shared extractor that validates the array and rejects missing/non-array/non-integer/fractional/out-of-range IDs. Fixes #2958; related to #2823 (duplicate report). Adds `TicklerWebServiceUnitTest` (9 tests covering both happy paths, empty array, privilege-denied, and missing/non-array/non-integer/fractional rejection). </br>
+**Automated review:** Sourcery, cubic, CodeRabbit. cubic's P1 (fractional `DoubleNode` truncation) addressed by requiring `isIntegralNumber()` + `canConvertToInt()`; CodeRabbit clean. </br>
+**Maintainer Feedback:** Merged to `develop` by `yingbull` on 2026-06-23, with a public endorsement on the PR: "Very helpful contribution - much welcome. Thank you." </br>
+**Status:** Complete - merged.
+
+---
+---
+
+## Learnings & Reflections
+
+**Technical skills gained.** Across the two contributions I worked hands-on with the type-safe Jakarta Persistence Criteria API and Hibernate 7's entity-join extension for unmapped associations (Contribution #1), and with Jackson `JsonNode` / `ArrayNode` parsing plus defensive input validation in a Spring REST layer (Contribution #2). Both required tracing real production wiring - a `@Repository` subclass resolution chain in one case, and the request-to-handler path for two REST endpoints in the other - rather than assuming the code under test was the code that actually runs. I also got repeated practice with the open-source contribution workflow itself: DCO sign-off, Conventional Commits, targeting `develop`, and triaging automated-review findings (cubic, CodeRabbit, gemini, Sourcery) on their merits instead of applying them blindly.
+
+**What I'd do differently next time.** Check for in-flight upstream PRs touching the same code before branching. Contribution #1's pre-merge rebase surfaced upstream #2898, which had already parameterized the method I was refactoring and forced a mid-stream reframing of the PR's narrative; catching that earlier would have saved a rebase conflict and let me frame the PR around the Criteria-adoption goal from the start. I'd also validate automated-review suggestions against the live tree sooner - one bot suggestion (move tests to a non-existent `src/test-modern/` directory) was simply wrong, and verifying first avoided a pointless change.
+
+**Maintainer relationship.** Both PRs went to the same project and maintainers, and the merged Contribution #2 earned a public maintainer endorsement. Contributing more than once to the same codebase builds a working relationship with its maintainers, which matters more for long-term credibility than a scatter of unrelated one-off fixes.
+
+---
+
+**Phase IV Complete.** Both pull requests are open in the upstream repository: #2977 is merged, and #2938 is approved by the lead maintainer at first review and awaiting a second approval to merge. This Contribution README documents the PR links, summaries, maintainer feedback, and status for each.
