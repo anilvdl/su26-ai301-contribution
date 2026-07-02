@@ -1,7 +1,7 @@
 # AI-301 Open Source Capstone — Contribution README
 
-**Student:** Anil Kumar V <br/>
-**Program:** AI301 | AI Open Source Capstone (Summer 2026, Section 18)<br/>
+**Student:** Anil Kumar Veldurthi <br/>
+**Program:** AI301 | AI Open Source Capstone (Summer 2026, Section 1B)<br/>
 **Member ID:** 153374<br/>
 **Project contributed to:** [carlos-emr/carlos](https://github.com/carlos-emr/carlos) (Carlos EMR)
 
@@ -10,12 +10,14 @@ This README documents two open-source contributions to the Carlos EMR project:
 1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** — Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open; approved by lead maintainer `yingbull` at first review with no concerns; awaiting a second maintainer approval to merge.
 2. **[PR #2977](https://github.com/carlos-emr/carlos/pull/2977)** — Fix HTTP 500 on bulk tickler complete/delete caused by unsafe Jackson `ArrayNode` parsing (issue #2958). Merged to `develop` on 2026-06-23.
 
+**Status as of Week 5 (2026-07-01):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open — lead-maintainer approved and awaiting the second approval required by branch protection (status carried forward from last review, pending re-verification).
+
 ---
 
 # Contribution #1: Investigate: Hibernate 7 JPA 3 Criteria API (Type-Safe Queries)
 
 **Contribution Number:** 1 </br>
-**Student:** Anil Kumar V </br>
+**Student:** Anil Kumar Veldurthi </br>
 **Issue:** https://github.com/carlos-emr/carlos/issues/1748 </br>
 **Pull Request:** https://github.com/carlos-emr/carlos/pull/2938 </br>
 **Status:** Phase IV Complete - PR open and approved by the lead maintainer (`yingbull`) at first review with no change requests; all checks green; awaiting a second maintainer approval to satisfy the repo's two-approval branch-protection rule before merge.
@@ -178,10 +180,10 @@ Implemented the refactor via a Claude + Claude Code workflow (I drafted structur
 # Contribution #2: Fix HTTP 500 on Bulk Tickler Complete/Delete (Jackson ArrayNode Parsing)
 
 **Contribution Number:** 2 </br>
-**Student:** Anil Kumar V </br>
+**Student:** Anil Kumar Veldurthi </br>
 **Issue:** https://github.com/carlos-emr/carlos/issues/2958 </br>
 **Pull Request:** https://github.com/carlos-emr/carlos/pull/2977 </br>
-**Status:** Complete - PR merged to `develop` on 2026-06-23 (merge commit `40986ff`) by maintainer `yingbull`, who publicly endorsed it on the PR ("Very helpful contribution - much welcome. Thank you."). Automated review addressed; all checks green; merged.
+**Status:** Complete - PR merged to `develop` on 2026-06-23 (merge commit `40986ff`) by maintainer `yingbull`, who publicly endorsed it on the PR ("Very helpful contribution - much welcome. Thank you."). Automated review addressed; all 29 CI checks passed; merged.
 
 ---
 
@@ -230,7 +232,7 @@ The shared ID-extractor added by this PR, `private List<Integer> extractTicklerI
 
 ### Reproduction Evidence
 - **Working branch:** https://github.com/anilvdl/carlos/tree/fix-issue-2958
-- **Defect reports:** #2958 (this issue) and #2823 (independent duplicate report of the same 500), which together confirm a real, repeatable failure.
+- **Defect reports:** #2958 (this issue) and #2823 (independent duplicate report of the same 500, since closed), which together confirm a real, repeatable failure.
 - **Root cause:** `ClassCastException` from casting `JsonNode` elements of an `ArrayNode` to `Integer` in the bulk complete/delete handlers.
 - **Regression coverage:** the new `TicklerWebServiceUnitTest` includes happy-path tests for both endpoints plus a `ticklers`-missing / non-array / non-integer / fractional set, which would have failed against the pre-fix `Integer`-cast handlers; all 9 pass against the fixed code.
 
@@ -321,7 +323,7 @@ Implemented via a Claude + Claude Code workflow (I drafted structured instructio
 **PR Title:** fix: tickler bulk complete/delete always 500 (#2958) </br>
 **PR Description:** Bulk tickler complete/delete (`POST /tickler/complete`, `POST /tickler/delete`) returned HTTP 500 for every valid request because iterating a Jackson `ArrayNode` yields `JsonNode` elements, so casting each to `Integer` threw `ClassCastException`. IDs are now read with `JsonNode.asInt()` (matching `updateTickler`) and parsed through a shared extractor that validates the array and rejects missing/non-array/non-integer/fractional/out-of-range IDs. Fixes #2958; related to #2823 (duplicate report). Adds `TicklerWebServiceUnitTest` (9 tests covering both happy paths, empty array, privilege-denied, and missing/non-array/non-integer/fractional rejection). </br>
 **Automated review:** Sourcery, cubic, CodeRabbit. cubic's P1 (fractional `DoubleNode` truncation) addressed by requiring `isIntegralNumber()` + `canConvertToInt()`; CodeRabbit clean. </br>
-**Maintainer Feedback:** Merged to `develop` by `yingbull` on 2026-06-23, with a public endorsement on the PR: "Very helpful contribution - much welcome. Thank you." </br>
+**Maintainer Feedback:** Merged to `develop` by `yingbull` on 2026-06-23 (merge commit `40986ff`, 29 CI checks passed), with a public endorsement on the PR: "Very helpful contribution - much welcome. Thank you." </br>
 **Status:** Complete - merged.
 
 ---
@@ -337,4 +339,4 @@ Implemented via a Claude + Claude Code workflow (I drafted structured instructio
 
 ---
 
-**Phase IV Complete.** Both pull requests are open in the upstream repository: #2977 is merged, and #2938 is approved by the lead maintainer at first review and awaiting a second approval to merge. This Contribution README documents the PR links, summaries, maintainer feedback, and status for each.
+**Phase IV Complete.** #2977 is merged to the upstream repository, and #2938 is open — approved by the lead maintainer at first review and awaiting a second approval to merge. This Contribution README documents the PR links, summaries, maintainer feedback, and status for each.
