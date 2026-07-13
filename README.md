@@ -10,7 +10,7 @@ This README documents two open-source contributions to the Carlos EMR project:
 1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** — Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open; approved by lead maintainer `yingbull` at first review with no concerns; awaiting a second maintainer approval to merge.
 2. **[PR #2977](https://github.com/carlos-emr/carlos/pull/2977)** — Fix HTTP 500 on bulk tickler complete/delete caused by unsafe Jackson `ArrayNode` parsing (issue #2958). Merged to `develop` on 2026-06-23.
 
-**Status as of Week 5 (2026-07-01):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open — lead-maintainer approved and awaiting the second approval required by branch protection (status carried forward from last review, pending re-verification).
+**Status as of Week 6 (2026-07-12):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open — lead-maintainer approved and awaiting the second approval required by branch protection (status carried forward from last review, pending re-verification).
 
 ---
 
