@@ -7,10 +7,10 @@
 
 This README documents two open-source contributions to the Carlos EMR project:
 
-1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** — Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open; approved by lead maintainer `yingbull` at first review with no concerns; awaiting a second maintainer approval to merge.
+1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** - Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open, all checks green. `yingbull` approved at first review; that approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review plus the second maintainer approval required by branch protection.
 2. **[PR #2977](https://github.com/carlos-emr/carlos/pull/2977)** — Fix HTTP 500 on bulk tickler complete/delete caused by unsafe Jackson `ArrayNode` parsing (issue #2958). Merged to `develop` on 2026-06-23.
 
-**Status as of Week 6 (2026-07-12):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open — lead-maintainer approved and awaiting the second approval required by branch protection (status carried forward from last review, pending re-verification).
+**Status as of Week 7 (2026-07-19):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open with all checks green; nothing has moved since last week. `yingbull`'s first-review approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review and the second approval required by branch protection.
 
 ---
 
@@ -20,7 +20,7 @@ This README documents two open-source contributions to the Carlos EMR project:
 **Student:** Anil Kumar Veldurthi </br>
 **Issue:** https://github.com/carlos-emr/carlos/issues/1748 </br>
 **Pull Request:** https://github.com/carlos-emr/carlos/pull/2938 </br>
-**Status:** Phase IV Complete - PR open and approved by the lead maintainer (`yingbull`) at first review with no change requests; all checks green; awaiting a second maintainer approval to satisfy the repo's two-approval branch-protection rule before merge.
+**Status:** Phase IV Complete - PR open, all checks green. `yingbull` approved at first review with no change requests; that approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review and the second maintainer approval required by the repo's two-approval branch-protection rule before merge.
 
 ---
 
@@ -171,8 +171,8 @@ Implemented the refactor via a Claude + Claude Code workflow (I drafted structur
 **PR Title:** refactor: convert ConsultationRequestDaoImpl.getConsults to type-safe JPA Criteria (#1748) </br>
 **PR Description:** Migrates `getConsults` to the type-safe JPA `CriteriaBuilder` API per #1748, building on #2898; flags two decisions for review (Hibernate entity-join extension for the unmapped sort joins; dropped dead `ext` join / de-duplication). Includes 17 integration tests + regression. </br>
 **Automated review:** addressed in `4c7d100` (null-`team` guard, BDD test naming, checkstyle one-statement-per-line, JavaDoc); one suggestion (move to `src/test-modern/`) declined with evidence - see Implementation Notes. </br>
-**Maintainer Feedback:** Approved by the lead maintainer `yingbull` at first review, with no change requests or open concerns. All CI checks pass and all review threads are resolved. The PR is not yet merged only because the repository's branch protection requires two human approvals; it is awaiting a second maintainer's approval. </br>
-**Status:** Phase IV Complete - PR open, automated review addressed, lead-maintainer approved, awaiting a second approval to merge
+**Maintainer Feedback:** `yingbull` approved at first review, with no change requests or open concerns. That approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, and re-review was requested. All CI checks pass and all review threads are resolved; the PR is awaiting `yingbull`'s re-review and, under the repository's two-approval branch protection, a second maintainer approval before merge. </br>
+**Status:** Phase IV Complete - PR open, automated review addressed; awaiting `yingbull`'s re-review and a second approval to merge
 
 ---
 ---
@@ -339,4 +339,4 @@ Implemented via a Claude + Claude Code workflow (I drafted structured instructio
 
 ---
 
-**Phase IV Complete.** #2977 is merged to the upstream repository, and #2938 is open — approved by the lead maintainer at first review and awaiting a second approval to merge. This Contribution README documents the PR links, summaries, maintainer feedback, and status for each.
+**Phase IV Complete.** #2977 is merged to the upstream repository, and #2938 is open with all checks green - `yingbull` approved at first review, that approval was dismissed by the pre-merge merge-conflict resolution, and the PR is awaiting his re-review and a second approval to merge. This Contribution README documents the PR links, summaries, maintainer feedback, and status for each.
