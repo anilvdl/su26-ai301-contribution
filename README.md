@@ -10,7 +10,7 @@ This README documents two open-source contributions to the Carlos EMR project:
 1. **[PR #2938](https://github.com/carlos-emr/carlos/pull/2938)** - Convert `ConsultationRequestDaoImpl.getConsults` to the type-safe JPA Criteria API (issue #1748). PR open, all checks green. `yingbull` approved at first review; that approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review plus the second maintainer approval required by branch protection.
 2. **[PR #2977](https://github.com/carlos-emr/carlos/pull/2977)** — Fix HTTP 500 on bulk tickler complete/delete caused by unsafe Jackson `ArrayNode` parsing (issue #2958). Merged to `develop` on 2026-06-23.
 
-**Status as of Week 7 (2026-07-19):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open with all checks green; nothing has moved since last week. `yingbull`'s first-review approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review and the second approval required by branch protection.
+**Status as of Week 8 (2026-07-26):** #2977 is merged to `develop` (merge commit `40986ff`; 29 CI checks passed). #2938 remains open with all checks green and is unchanged for a second consecutive week. `yingbull`'s first-review approval was dismissed when the pre-merge merge-conflict resolution (a DCO-signed merge commit onto latest `develop`) was pushed, so the PR is awaiting `yingbull`'s re-review and the second approval required by branch protection.
 
 ---
 
